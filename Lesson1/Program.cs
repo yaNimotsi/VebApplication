@@ -15,30 +15,42 @@ namespace Lesson1
 
         private const string PostAddressWithOutIndex = "https://jsonplaceholder.typicode.com/posts/";
 
+        const byte startPostIndex = 4;
+        const byte endPostIndex = 13;
+
         private static async Task Main()
         {
-            HttpClient client = new();
-            
-            const byte startPostIndex = 4;
-            const byte endPostIndex = 13;
-
-            var responseList = new List<string>();
-
             Cts.CancelAfter(10000);
 
-            for (int i = startPostIndex; i <= endPostIndex; i++)
-            {
-                var newUriPost = new Uri(Path.Combine(PostAddressWithOutIndex, i.ToString()));
-                responseList.Add(GetAndSendUriAsync(newUriPost, client).Result);
-            }
+            var responsesList = await GetResponsesAsync();
 
-            await ProcessingResponse(responseList);
+            await ProcessingResponseAsync(responsesList);
 
             Console.WriteLine("Program has finished working");
         }
 
         /// <summary>
-        /// Get response after request
+        /// Get all respons from the post
+        /// </summary>
+        /// <returns>Responses from the post</returns>
+        private static async Task<List<string>> GetResponsesAsync()
+        {
+            HttpClient client = new();
+
+            var result = new List<string>();
+
+            for (int i = startPostIndex; i <= endPostIndex; i++)
+            {
+                var newUriPost = new Uri(Path.Combine(PostAddressWithOutIndex, i.ToString()));
+                var response = await GetAndSendUriAsync(newUriPost, client);
+                result.Add(response);
+            }
+            
+            return result;
+        }
+
+        /// <summary>
+        /// Get respons after request
         /// </summary>
         /// <param name="postAddressUri"> request address</param>
         /// <param name="client">HTML client object</param>
@@ -63,7 +75,7 @@ namespace Lesson1
         /// </summary>
         /// <param name="responsesList"></param>
         /// <returns></returns>
-        private static async Task ProcessingResponse(List<string> responsesList)
+        private static async Task ProcessingResponseAsync(List<string> responsesList)
         {
             if (responsesList.Count <= 0) return;
 
@@ -86,7 +98,7 @@ namespace Lesson1
         {
             if (!File.Exists(PathToTxt))
             {
-                await CreateTxtAsync();
+                CreateTxtAsync();
             }
 
             var encodingTextByte = Encoding.UTF8.GetBytes(textToWrite);
@@ -111,7 +123,7 @@ namespace Lesson1
         /// <summary>
         /// Create txt file
         /// </summary>
-        private static async Task CreateTxtAsync()
+        private static void CreateTxtAsync()
         {
             try
             {
