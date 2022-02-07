@@ -10,7 +10,6 @@ namespace Lesson1
 {
     internal static class Program
     {
-        private static readonly HttpClient Client = new();
         private static readonly CancellationTokenSource Cts = new();
         private static readonly string PathToTxt = Path.Combine(Environment.CurrentDirectory, "result.txt");
 
@@ -18,7 +17,8 @@ namespace Lesson1
 
         private static async Task Main()
         {
-            //test.CreateAndSendRequest();
+            HttpClient client = new();
+            
             const byte startPostIndex = 4;
             const byte endPostIndex = 13;
 
@@ -29,7 +29,7 @@ namespace Lesson1
             for (int i = startPostIndex; i <= endPostIndex; i++)
             {
                 var newUriPost = new Uri(Path.Combine(PostAddressWithOutIndex, i.ToString()));
-                responseList.Add(GetAndSendUriAsync(newUriPost).Result);
+                responseList.Add(GetAndSendUriAsync(newUriPost, client).Result);
             }
 
             await ProcessingResponse(responseList);
@@ -41,12 +41,13 @@ namespace Lesson1
         /// Get response after request
         /// </summary>
         /// <param name="postAddressUri"> request address</param>
+        /// <param name="client">HTML client object</param>
         /// <returns>post text </returns>
-        private static async Task<string> GetAndSendUriAsync(Uri postAddressUri)
+        private static async Task<string> GetAndSendUriAsync(Uri postAddressUri, HttpClient client)
         {
             try
             {
-                var responseQuery = Program.Client.GetAsync(postAddressUri, HttpCompletionOption.ResponseContentRead, Cts.Token).Result;
+                var responseQuery = client.GetAsync(postAddressUri, HttpCompletionOption.ResponseContentRead, Cts.Token).Result;
                 responseQuery.EnsureSuccessStatusCode();
                 return await responseQuery.Content.ReadAsStringAsync();
             }
