@@ -1,4 +1,6 @@
-﻿using System;
+﻿using Newtonsoft.Json;
+
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Net.Http;
@@ -22,31 +24,21 @@ namespace Lesson1
         {
             Cts.CancelAfter(10000);
 
-            var responsesList = await GetResponsesAsync();
-
-            await ProcessingResponseAsync(responsesList);
-
-            Console.WriteLine("Program has finished working");
-        }
-
-        /// <summary>
-        /// Get all respons from the post
-        /// </summary>
-        /// <returns>Responses from the post</returns>
-        private static async Task<List<string>> GetResponsesAsync()
-        {
             HttpClient client = new();
 
-            var result = new List<string>();
+            var taskList = new List<Task<Post>>();
 
             for (int i = startPostIndex; i <= endPostIndex; i++)
             {
                 var newUriPost = new Uri(Path.Combine(PostAddressWithOutIndex, i.ToString()));
-                var response = await GetAndSendUriAsync(newUriPost, client);
-                result.Add(response);
+                taskList.Add(GetAndSendUriAsync(newUriPost, client));
             }
-            
-            return result;
+
+            var posts = await Task.WhenAll(taskList);
+
+            ProcessingResponse(new List<Post>(posts));
+
+            Console.WriteLine("Program has finished working");
         }
 
         /// <summary>
@@ -54,18 +46,21 @@ namespace Lesson1
         /// </summary>
         /// <param name="postAddressUri"> request address</param>
         /// <param name="client">HTML client object</param>
-        /// <returns>post text </returns>
-        private static async Task<string> GetAndSendUriAsync(Uri postAddressUri, HttpClient client)
+        /// <returns>Post object </returns>
+        private static async Task<Post> GetAndSendUriAsync(Uri postAddressUri, HttpClient client)
         {
             try
             {
-                var responseQuery = client.GetAsync(postAddressUri, HttpCompletionOption.ResponseContentRead, Cts.Token).Result;
-                responseQuery.EnsureSuccessStatusCode();
-                return await responseQuery.Content.ReadAsStringAsync();
+                var response = await client.GetAsync(postAddressUri,
+                    HttpCompletionOption.ResponseContentRead, Cts.Token);
+
+                var postFromUri = await response.Content.ReadAsStringAsync();
+                return JsonConvert.DeserializeObject<Post>(postFromUri);
             }
             catch (HttpRequestException ex)
             {
-                Console.WriteLine(ex.Message);
+                Console.WriteLine($"We have exception with uir {postAddressUri} " +
+                    $"\r\n {ex.Message}");
                 return null;
             }
         }
@@ -75,7 +70,7 @@ namespace Lesson1
         /// </summary>
         /// <param name="responsesList"></param>
         /// <returns></returns>
-        private static async Task ProcessingResponseAsync(List<string> responsesList)
+        private static void ProcessingResponse(List<Post> responsesList)
         {
             if (responsesList.Count <= 0) return;
 
@@ -83,10 +78,10 @@ namespace Lesson1
 
             foreach (var t in responsesList)
             {
-                stringBuilder.Append(t + "\r\r");
+                stringBuilder.Append(t.ToString());
             }
 
-            await WriteToFileAsync(stringBuilder.ToString());
+            WriteToFile(stringBuilder.ToString());
         }
 
         /// <summary>
@@ -94,11 +89,11 @@ namespace Lesson1
         /// </summary>
         /// <param name="textToWrite"> Text to write in txt file</param>
         /// <returns></returns>
-        private static async Task WriteToFileAsync(string textToWrite)
+        private static void WriteToFile(string textToWrite)
         {
             if (!File.Exists(PathToTxt))
             {
-                CreateTxtAsync();
+                CreateTxt();
             }
 
             var encodingTextByte = Encoding.UTF8.GetBytes(textToWrite);
@@ -108,11 +103,11 @@ namespace Lesson1
                 return;
             }
 
-            await using var fileStream = new FileStream(PathToTxt, FileMode.Append, FileAccess.Write,
+            using var fileStream = new FileStream(PathToTxt, FileMode.Append, FileAccess.Write,
                 FileShare.None, 4096, true);
             try
             {
-                await fileStream.WriteAsync(encodingTextByte, Cts.Token);
+                fileStream.Write(encodingTextByte);
             }
             catch (Exception e)
             {
@@ -123,7 +118,7 @@ namespace Lesson1
         /// <summary>
         /// Create txt file
         /// </summary>
-        private static void CreateTxtAsync()
+        private static void CreateTxt()
         {
             try
             {
